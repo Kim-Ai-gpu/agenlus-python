@@ -332,12 +332,13 @@ Trained locally and uploaded to Agenlus.
             path_in_repo=f"{subfolder}/model.onnx",
             repo_id=hf_repo
         )
-        api.upload_file(
+        commit_info = api.upload_file(
             path_or_fileobj="README.md",
             path_in_repo=f"{subfolder}/README.md",
             repo_id=hf_repo
         )
-        print("[Agenlus] HuggingFace files uploaded successfully.")
+        commit_oid = getattr(commit_info, "oid", None) or str(commit_info) or "main"
+        print(f"[Agenlus] HuggingFace files uploaded successfully. Commit OID: {commit_oid}")
     except Exception as e:
         cleanup_local_files()
         raise Exception(f"Failed to upload files to Hugging Face: {e}")
@@ -350,7 +351,7 @@ Trained locally and uploaded to Agenlus.
         "Content-Type": "application/json"
     }
     
-    hf_url = f"https://huggingface.co/{hf_repo}/tree/main/{subfolder}"
+    hf_url = f"https://huggingface.co/{hf_repo}/tree/{commit_oid}/{subfolder}"
     
     payload = {
         "name": model_name,
