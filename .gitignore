@@ -46,3 +46,7 @@ _temp_env.py
 _temp_env.pyc
 model.pt
 model.onnx
+
+# Local deployment/publish script
+publish.ps1
+
