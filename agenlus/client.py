@@ -292,6 +292,14 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
     if "/" not in hf_repo:
         hf_repo = f"{hf_username}/{hf_repo}"
 
+    # Ensure repository exists or create it
+    print(f"[Agenlus] Ensuring Hugging Face repository '{hf_repo}' exists...")
+    try:
+        api.create_repo(repo_id=hf_repo, exist_ok=True)
+    except Exception as e:
+        cleanup_local_files()
+        raise Exception(f"Failed to verify or create Hugging Face repository '{hf_repo}': {e}")
+
     # Assign/Generate model name and subfolder
     if not model_name:
         clean_env_name = normalized_env_id.replace("system/", "").replace("/", "_").lower()
