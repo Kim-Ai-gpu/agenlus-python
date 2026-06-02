@@ -161,7 +161,13 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
                     obs_arr = np.array(obs_val, dtype=np.float32)
                     if local_obs_space is None:
                         local_obs_space = obs_arr.shape
-                    obs_t = torch.FloatTensor(obs_arr).unsqueeze(0)
+                    
+                    try:
+                        model_device = next(model.parameters()).device
+                    except StopIteration:
+                        model_device = torch.device("cpu")
+                    
+                    obs_t = torch.FloatTensor(obs_arr).unsqueeze(0).to(model_device)
                     
                     # Forward pass
                     out = model(obs_t)
@@ -220,6 +226,12 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
                 dummy_input = torch.randn(1, obs_int)
             except:
                 dummy_input = torch.randn(1, 4) # fallback
+                
+        try:
+            model_device = next(model.parameters()).device
+        except StopIteration:
+            model_device = torch.device("cpu")
+        dummy_input = dummy_input.to(model_device)
                 
         # Export ONNX
         model.eval()
