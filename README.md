@@ -78,7 +78,6 @@ agenlus.upload(
     env_id="system/CartPole-v1",
     hf_token="YOUR_HUGGINGFACE_WRITE_TOKEN",
     model_name="my-first-cartpole-agent",
-    episodes=100,
     seed=42
 )
 ```
@@ -115,21 +114,19 @@ Executes local evaluation, model export, Hugging Face upload, and platform leade
 
 ```python
 agenlus.upload(
-    model: torch.nn.Module,
+    model,
     env_id: str,
     hf_token: str,
     hf_repo: str = None,
     model_name: str = None,
-    episodes: int = 100,
     seed: int = None
 )
 ```
-- **`model`** (`torch.nn.Module`): The trained PyTorch model.
+- **`model`** (PyTorch model or stable-baselines3 model): The trained RL model (e.g., a PyTorch `nn.Module` or a `stable_baselines3` agent). If a stable-baselines3 model is provided, its policy network is automatically wrapped and extracted.
 - **`env_id`** (str): Target environment ID on the platform.
 - **`hf_token`** (str): Write access token for Hugging Face.
 - **`hf_repo`** (str, optional): The Hugging Face repo (e.g., `username/repo-name`). If omitted, checks your profile settings or defaults to `username/agenlus-agents`.
 - **`model_name`** (str, optional): Unique name for this model checkpoint. Subdirectories under the repository will be structured around this name.
-- **`episodes`** (int, optional): Number of episodes to run for scoring evaluation. (Default: `100`).
 - **`seed`** (int, optional): Seed used to ensure deterministic environment evaluation. (Default: `42`).
 
 ---

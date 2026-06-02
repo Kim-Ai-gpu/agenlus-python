@@ -7,6 +7,53 @@ import torch
 CONFIG_FILE = os.path.expanduser("~/.agenlus_config.json")
 DEFAULT_API_URL = "https://ai-app-store-backend.lam983039.workers.dev"
 
+class SB3PolicyWrapper(torch.nn.Module):
+    def __init__(self, sb3_model):
+        super().__init__()
+        self.sb3_model = sb3_model
+        
+        # Extract the underlying module
+        if hasattr(sb3_model, "q_net"):
+            # DQN
+            self.policy_module = sb3_model.q_net
+            self.mode = "dqn"
+        elif hasattr(sb3_model, "policy"):
+            policy = sb3_model.policy
+            if hasattr(policy, "action_net") and hasattr(policy, "mlp_extractor") and hasattr(policy, "features_extractor"):
+                # PPO / A2C
+                self.policy_module = policy
+                self.mode = "actor_critic"
+            elif hasattr(policy, "actor"):
+                # SAC / TD3 / DDPG
+                self.policy_module = policy.actor
+                self.mode = "actor"
+            else:
+                self.policy_module = policy
+                self.mode = "generic"
+        else:
+            raise ValueError("Could not find policy components in stable-baselines3 model.")
+            
+    def forward(self, obs):
+        if self.mode == "dqn":
+            return self.policy_module(obs)
+        elif self.mode == "actor_critic":
+            if hasattr(self.policy_module, "extract_features"):
+                features = self.policy_module.extract_features(obs, self.policy_module.features_extractor)
+            else:
+                features = self.policy_module.features_extractor(obs)
+            latent_pi, _ = self.policy_module.mlp_extractor(features)
+            return self.policy_module.action_net(latent_pi)
+        elif self.mode == "actor":
+            if self.sb3_model.__class__.__name__ == "SAC":
+                try:
+                    return self.policy_module(obs, deterministic=True)
+                except TypeError:
+                    return self.policy_module(obs)
+            else:
+                return self.policy_module(obs)
+        else:
+            return self.policy_module(obs)
+
 def login(token: str, api_url: str = None):
     """
     Save the user token and API URL locally.
@@ -25,11 +72,18 @@ def login(token: str, api_url: str = None):
     print(f"[Agenlus] Login settings saved to {CONFIG_FILE}")
     print(f"[Agenlus] API URL: {api_url}")
 
-def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = None, model_name: str = None, episodes: int = 100, seed: int = None):
+def upload(model, env_id: str, hf_token: str, hf_repo: str = None, model_name: str = None, seed: int = None):
     """
     Convert PyTorch model to ONNX + PT, run local evaluation to compute best_score,
     upload to Hugging Face (stacked under subfolder), and register to Agenlus Leaderboard.
     """
+    episodes = 100
+    
+    # Check if it is a stable-baselines3 model
+    if not isinstance(model, torch.nn.Module) and hasattr(model, "policy") and isinstance(model.policy, torch.nn.Module):
+        print("[Agenlus] Stable-Baselines3 model detected. Automatically wrapping policy network...")
+        model = SB3PolicyWrapper(model)
+
     # 1. Load config
     if not os.path.exists(CONFIG_FILE):
         raise ValueError("No login session found. Please call agenlus.login(token) first.")
