@@ -234,18 +234,24 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
         dummy_input = dummy_input.to(model_device)
                 
         # Export ONNX
+        # CRITICAL: Force legacy TorchScript export (dynamo=False) to produce ONNX files
+        # compatible with onnxruntime-web's WASM backend in the browser.
+        # PyTorch 2.x defaults to dynamo=True which generates onnxscript-based ops
+        # that crash the browser WASM runtime with "Lt[m] is not a function".
         model.eval()
-        torch.onnx.export(
-            model,
-            dummy_input,
-            "model.onnx",
+        _onnx_export_kwargs = dict(
             export_params=True,
-            opset_version=17,
+            opset_version=14,
             do_constant_folding=True,
             input_names=['input'],
             output_names=['output'],
             dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
         )
+        try:
+            torch.onnx.export(model, dummy_input, "model.onnx", dynamo=False, **_onnx_export_kwargs)
+        except TypeError:
+            # Fallback for older PyTorch versions (< 2.1) that don't support dynamo parameter
+            torch.onnx.export(model, dummy_input, "model.onnx", **_onnx_export_kwargs)
         print("[Agenlus] Local model conversion completed successfully.")
     except Exception as e:
         cleanup_local_files()
