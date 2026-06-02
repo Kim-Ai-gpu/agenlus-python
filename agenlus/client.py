@@ -77,6 +77,7 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
     if seed is None:
         seed = 42
     print(f"[Agenlus] Running local evaluation on '{normalized_env_id}' for {episodes} episodes using base seed {seed}...")
+    local_obs_space = None
     temp_env_path = "_temp_env.py"
     try:
         # Download the environment code to temp file
@@ -120,6 +121,13 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
         print(f"[Agenlus] Found environment class: {env_class.__name__}")
         env = env_class()
         
+        # Try to infer observation space from the local environment instance
+        if hasattr(env, "observation_space"):
+            if hasattr(env.observation_space, "shape") and env.observation_space.shape is not None:
+                local_obs_space = env.observation_space.shape
+            elif hasattr(env.observation_space, "n"):
+                local_obs_space = env.observation_space.n
+        
         # Run episodes
         total_rewards = []
         model.eval()
@@ -151,6 +159,8 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
                     
                     import numpy as np
                     obs_arr = np.array(obs_val, dtype=np.float32)
+                    if local_obs_space is None:
+                        local_obs_space = obs_arr.shape
                     obs_t = torch.FloatTensor(obs_arr).unsqueeze(0)
                     
                     # Forward pass
@@ -198,14 +208,15 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
         # Save PyTorch Model
         torch.save(model, "model.pt")
         
-        # Determine dummy input shape
-        if isinstance(obs_space, (list, tuple)):
-            dummy_input = torch.randn(1, *obs_space)
-        elif isinstance(obs_space, int):
-            dummy_input = torch.randn(1, obs_space)
+        # Determine dummy input shape (prefer local_obs_space detected during local evaluation)
+        target_obs_space = local_obs_space if local_obs_space is not None else obs_space
+        if isinstance(target_obs_space, (list, tuple)):
+            dummy_input = torch.randn(1, *target_obs_space)
+        elif isinstance(target_obs_space, int):
+            dummy_input = torch.randn(1, target_obs_space)
         else:
             try:
-                obs_int = int(obs_space)
+                obs_int = int(target_obs_space)
                 dummy_input = torch.randn(1, obs_int)
             except:
                 dummy_input = torch.randn(1, 4) # fallback
