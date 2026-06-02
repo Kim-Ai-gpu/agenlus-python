@@ -12,7 +12,7 @@
 
 - **Simple Authentication**: Quick setup with single-line token authentication.
 - **Environment Downloader**: Easily fetch custom Gymnasium environment specifications and source code directly from the server.
-- **Automatic Export**: Exposes models to both PyTorch (`.pt`) and ONNX (`.onnx`) formats with dynamic batching.
+- **Automatic Export & SB3 Support**: Exposes models (both pure PyTorch and `stable-baselines3` models) to both PyTorch (`.pt`) and ONNX (`.onnx`) formats with dynamic batching.
 - **Deterministic Evaluation**: Validates model performance locally using reproducible seeds before uploading.
 - **Hugging Face Hub Integration**: Automates repositories creation and stacks model uploads into tidy subfolders.
 - **Leaderboard Registration**: Instant, automated registration of evaluated models to the Agenlus leaderboard.
@@ -78,6 +78,37 @@ agenlus.upload(
     env_id="system/CartPole-v1",
     hf_token="YOUR_HUGGINGFACE_WRITE_TOKEN",
     model_name="my-first-cartpole-agent",
+    seed=42
+)
+```
+
+### Stable-Baselines3 Support (DQN, PPO, SAC, etc.)
+
+You can directly upload models trained with `stable-baselines3`. The policy network will be automatically wrapped and exported to ONNX:
+
+```python
+import gymnasium as gym
+from stable_baselines3 import DQN
+import agenlus
+
+# 1. Log in
+agenlus.login(token="YOUR_AGENLUS_API_TOKEN")
+
+# 2. Download environment code (if custom or needed)
+env_file = agenlus.download("system/CartPole-v1")
+
+# 3. Define and train your SB3 agent
+env = gym.make("CartPole-v1")
+model = DQN("MlpPolicy", env, verbose=1)
+model.learn(total_timesteps=10000)
+
+# 4. Upload and register to Leaderboard
+# This automatically wraps model.q_net (DQN) / model.policy (PPO) for ONNX compatibility
+agenlus.upload(
+    model=model,
+    env_id="system/CartPole-v1",
+    hf_token="YOUR_HUGGINGFACE_WRITE_TOKEN",
+    model_name="my-sb3-dqn-agent",
     seed=42
 )
 ```
