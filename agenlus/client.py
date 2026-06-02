@@ -240,7 +240,7 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
             dummy_input,
             "model.onnx",
             export_params=True,
-            opset_version=11,
+            opset_version=17,
             do_constant_folding=True,
             input_names=['input'],
             output_names=['output'],
