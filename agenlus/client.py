@@ -264,7 +264,7 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
 
     # 4. Connect and Setup HuggingFace target
     try:
-        from huggingface_hub import HfApi, create_repo
+        from huggingface_hub import HfApi
     except ImportError:
         cleanup_local_files()
         raise ImportError("huggingface_hub library is missing. Please install it with 'pip install huggingface_hub'.")
@@ -279,15 +279,15 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
         cleanup_local_files()
         raise Exception(f"HuggingFace authentication failed: {e}")
 
-    # Resolve HF Repo (User specified > User Profile Default setting > Fallback)
+    # Resolve HF Repo (User specified > User Profile Default setting)
     if not hf_repo:
         if default_hf_repo:
             hf_repo = default_hf_repo
             print(f"[Agenlus] Using default repository from profile settings: {hf_repo}")
         else:
-            hf_repo = f"{hf_username}/agenlus-agents"
-            print(f"[Agenlus] No profile default repo found. Using default: {hf_repo}")
-            
+            cleanup_local_files()
+            raise ValueError("No repository provided and no default profile repository found. Please specify hf_repo.")
+
     # Normalize repo format (username/repo)
     if "/" not in hf_repo:
         hf_repo = f"{hf_username}/{hf_repo}"
@@ -299,11 +299,6 @@ def upload(model: torch.nn.Module, env_id: str, hf_token: str, hf_repo: str = No
         
     subfolder = model_name.strip().replace(" ", "_").replace("/", "_")
     print(f"[Agenlus] Target repository: {hf_repo}, Subfolder: {subfolder}")
-    
-    try:
-        create_repo(repo_id=hf_repo, token=hf_token, exist_ok=True, private=True)
-    except Exception as e:
-        print(f"[Agenlus] Skipped repository creation (proceeding anyway): {e}")
 
     # Create local temporary readme for this specific model subfolder
     readme_content = f"""---

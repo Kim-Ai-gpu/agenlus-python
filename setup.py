@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="agenlus-hub",
-    version="0.1.8",
+    version="0.1.9",
     description="Python client for Agenlus model upload pipeline.",
     long_description=long_description,
     long_description_content_type="text/markdown",
